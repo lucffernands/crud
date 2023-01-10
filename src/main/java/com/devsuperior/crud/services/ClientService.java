@@ -3,7 +3,10 @@ package com.devsuperior.crud.services;
 import com.devsuperior.crud.dto.ClientDTO;
 import com.devsuperior.crud.entities.Client;
 import com.devsuperior.crud.repositories.ClientRepository;
+import com.devsuperior.crud.services.exceptions.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,7 +26,8 @@ public class ClientService {
 
     @Transactional(readOnly = true)
     public ClientDTO findById(Long id) {
-        Client client = repository.findById(id).get();
+        Client client = repository.findById(id).orElseThrow(
+                () -> new ResourceNotFoundException("Id não encontrado"));
         return new ClientDTO(client);
     }
 
@@ -37,11 +41,14 @@ public class ClientService {
 
     @Transactional
     public ClientDTO update(Long id, ClientDTO dto) {
-        Client entity =repository.getReferenceById(id);
-        copyDtoEntity(dto, entity);
-        entity = repository.save(entity);
-        return new ClientDTO(entity);
-
+        try {
+            Client entity =repository.getReferenceById(id);
+            copyDtoEntity(dto, entity);
+            entity = repository.save(entity);
+            return new ClientDTO(entity);
+        } catch (EntityNotFoundException e) {
+            throw new ResourceNotFoundException("Id não encontrado");
+        }
     }
 
     private void copyDtoEntity(ClientDTO dto, Client entity) {
@@ -54,6 +61,11 @@ public class ClientService {
 
     @Transactional
     public void delete(Long id) {
-        repository.deleteById(id);
+        try {
+            repository.deleteById(id);
+        } catch (EmptyResultDataAccessException e) {
+            throw new ResourceNotFoundException("Id não encontrado");
+        }
+
     }
 }
